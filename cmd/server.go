@@ -19,8 +19,9 @@ func main() {
 		Addr: ":" + port,
 	}
 
-	http.HandleFunc("POST /payments", handlers.PaymentsHandler)
-	http.HandleFunc("GET /payments-summary", handlers.PaymentsSummaryHandler)
+	handler := handlers.NewHandler()
+	http.HandleFunc("POST /payments", handler.PaymentsHandler)
+	http.HandleFunc("GET /payments-summary", handler.PaymentsSummaryHandler)
 
 	go func() {
 		log.Printf("Starting server on port %s", port)
