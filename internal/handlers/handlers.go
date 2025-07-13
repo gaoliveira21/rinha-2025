@@ -13,6 +13,10 @@ type Handler struct {
 	paymentProcessorFallback *clients.PaymentProcessor
 }
 
+type ErrorResp struct {
+	Message string `json:"message"`
+}
+
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{
 		paymentsDAO:              dao.NewPaymentsDAO(pool),

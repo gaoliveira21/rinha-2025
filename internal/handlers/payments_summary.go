@@ -4,13 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"rinha2025/internal/dao"
 	"time"
 )
-
-type ErrorResp struct {
-	Message string `json:"message"`
-}
 
 func (h *Handler) PaymentsSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -24,10 +19,7 @@ func (h *Handler) PaymentsSummaryHandler(w http.ResponseWriter, r *http.Request)
 		to = time.Now().Format(time.RFC3339)
 	}
 
-	summary, err := h.paymentsDAO.GetPaymentSummary(&dao.PaymentSummaryInput{
-		From: from,
-		To:   to,
-	})
+	summary, err := h.paymentsDAO.GetPaymentsSummary(from, to)
 	if err != nil {
 		log.Printf("Error getting default payment summary: %v\n", err)
 		resp := ErrorResp{Message: "Failed to get default payment summary"}
