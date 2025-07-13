@@ -4,7 +4,17 @@
 
 Este projeto implementa um sistema de processamento de pagamentos desenvolvido em Go, utilizando PostgreSQL como banco de dados e Docker para orquestração dos serviços.
 
+## Tecnologias
+
+- Golang
+- PostgreSql
+- Nginx
+
 ## Estratégia de Processamento de Pagamentos
+
+De forma geral as requisições para a rota POST /payments são recebidas e enviadas para um fila para processamento assíncrono, em caso de falha ou indisponibilidade dos serviços
+de pagamento, é utilizado uma estratégia de retentativas, ao esgotar a quantidade de retentativas o pagamento é persistido na base de dados para ser processado posteriormente quando houver
+algum serviço disponível. Segue abaixo uma explicação mais detalhada do processo:
 
 - **Processador Default e Fallback:**
   - O sistema utiliza dois processadores de pagamento: um principal (default) e um de fallback.
