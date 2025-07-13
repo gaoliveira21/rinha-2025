@@ -28,7 +28,7 @@ func main() {
 	}
 
 	config, _ := pgxpool.ParseConfig(os.Getenv("DB_URL"))
-	config.MaxConns = 9
+	config.MaxConns = 22
 	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -44,8 +44,8 @@ func main() {
 	worker := queue.NewPaymentWorker(pool, paymentPcrDft, paymentPcrFbk, ctx)
 	d := queue.NewDispatcher(
 		worker,
-		8,
-		3048,
+		20,
+		6048,
 	)
 	worker.SetDispatcher(d)
 
@@ -108,7 +108,7 @@ func processFailedPayment(pool *pgxpool.Pool, svcChan chan struct{}, d *queue.Di
 
 			rows, err := tx.Query(
 				ctx,
-				`SELECT correlation_id, amount, requested_at FROM failed_payments_queue LIMIT 100`,
+				`SELECT correlation_id, amount, requested_at FROM failed_payments_queue LIMIT 400`,
 			)
 			if err != nil {
 				tx.Rollback(ctx)

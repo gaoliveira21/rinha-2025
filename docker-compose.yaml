@@ -48,7 +48,7 @@ services:
       test: ["CMD-SHELL", "sh -c 'pg_isready -U postgres -d rinha_payments'"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
     ports:
       - "5432:5432"
     deploy:
