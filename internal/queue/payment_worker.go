@@ -4,9 +4,7 @@ import (
 	"context"
 	"log"
 	"rinha2025/internal/clients"
-	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -37,90 +35,66 @@ func (w *PaymentWorker) SetDispatcher(d *Dispatcher) {
 }
 
 func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
-	time.Sleep(500 * time.Millisecond * time.Duration(job.Attempts))
-
 	job.Attempts++
 
 	if job.Attempts > 3 {
+		// TODO: Insert the data into the database to keep track of failed attempts and try again later
 		log.Printf("Job %s exceeded max attempts, dropping job", job.CorrelationID)
 		return
 	}
 
-	conn, err := w.pool.Acquire(w.ctx)
-	if err != nil {
-		log.Printf("Failed to acquire connection: %v", err)
-		w.dispatcher.Enqueue(job)
-		return
-	}
-	defer conn.Release()
-
-	tx, err := conn.BeginTx(w.ctx, pgx.TxOptions{})
-	if err != nil {
-		log.Printf("Failed to begin transaction: %v", err)
-		w.dispatcher.Enqueue(job)
-		return
-	}
-
 	if w.paymentProcessorDefault.IsHealthy() {
-		_, err = tx.Exec(w.ctx, `INSERT INTO payments_default (correlation_id, amount, requested_at) VALUES ($1, $2, $3)`,
-			job.CorrelationID, job.Amount, job.RequestedAt)
-		if err != nil {
-			log.Printf("Failed to insert payment default: %v", err)
-			if rollbackErr := tx.Rollback(w.ctx); rollbackErr != nil {
-				log.Printf("Failed to rollback transaction: %v", rollbackErr)
-			}
-			w.dispatcher.Enqueue(job)
-			return
-		}
-
-		err = w.paymentProcessorDefault.ProcessPayment(&clients.PaymentInput{
+		err := w.paymentProcessorDefault.ProcessPayment(&clients.PaymentInput{
 			CorrelationID: job.CorrelationID,
 			Amount:        job.Amount,
 		})
 		if err != nil {
 			log.Printf("Failed to process payment default: %v", err)
-			if rollbackErr := tx.Rollback(w.ctx); rollbackErr != nil {
-				log.Printf("Failed to rollback transaction: %v", rollbackErr)
-			}
 			w.dispatcher.Enqueue(job)
 			return
 		}
 
-		if err = tx.Commit(w.ctx); err != nil {
-			log.Printf("Failed to commit transaction: %v", err)
-			w.dispatcher.Enqueue(job)
+		conn, err := w.pool.Acquire(w.ctx)
+		if err != nil {
+			log.Printf("Failed to acquire connection: %v", err)
+			// TODO handle error, maybe re-enqueue job as paid to just insert it later
+			return
+		}
+		defer conn.Release()
+
+		_, err = conn.Exec(w.ctx, `INSERT INTO payments_default (correlation_id, amount, requested_at) VALUES ($1, $2, $3)`,
+			job.CorrelationID, job.Amount, job.RequestedAt)
+		if err != nil {
+			log.Printf("Failed to insert payment default: %v", err)
+			// TODO handle error, maybe re-enqueue job
 		}
 		return
 	}
 
 	if w.paymentProcessorFallback.IsHealthy() {
-		_, err = tx.Exec(w.ctx, `INSERT INTO payments_fallback (correlation_id, amount, requested_at) VALUES ($1, $2, $3)`,
-			job.CorrelationID, job.Amount, job.RequestedAt)
-		if err != nil {
-			log.Printf("Failed to insert payment fallback: %v", err)
-			if rollbackErr := tx.Rollback(w.ctx); rollbackErr != nil {
-				log.Printf("Failed to rollback transaction: %v", rollbackErr)
-			}
-			w.dispatcher.Enqueue(job)
-			return
-		}
-
-		err = w.paymentProcessorFallback.ProcessPayment(&clients.PaymentInput{
+		err := w.paymentProcessorFallback.ProcessPayment(&clients.PaymentInput{
 			CorrelationID: job.CorrelationID,
 			Amount:        job.Amount,
 		})
 		if err != nil {
 			log.Printf("Failed to process payment fallback: %v", err)
-			if rollbackErr := tx.Rollback(w.ctx); rollbackErr != nil {
-				log.Printf("Failed to rollback transaction: %v", rollbackErr)
-			}
 			w.dispatcher.Enqueue(job)
 			return
 		}
 
-		if err = tx.Commit(w.ctx); err != nil {
-			log.Printf("Failed to commit transaction: %v", err)
-			w.dispatcher.Enqueue(job)
+		conn, err := w.pool.Acquire(w.ctx)
+		if err != nil {
+			log.Printf("Failed to acquire connection: %v", err)
+			// TODO handle error, maybe re-enqueue job as paid to just insert it later
+			return
+		}
+		defer conn.Release()
+
+		_, err = conn.Exec(w.ctx, `INSERT INTO payments_fallback (correlation_id, amount, requested_at) VALUES ($1, $2, $3)`,
+			job.CorrelationID, job.Amount, job.RequestedAt)
+		if err != nil {
+			log.Printf("Failed to insert payment fallback: %v", err)
+			// TODO handle error, maybe re-enqueue job as paid to just insert it later
 		}
 		return
 	}

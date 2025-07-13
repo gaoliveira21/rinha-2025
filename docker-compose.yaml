@@ -33,7 +33,7 @@ services:
       resources:
         limits:
           cpus: "0.15"
-          memory: "15MB"
+          memory: "30MB"
   db:
     image: postgres:17-alpine
     networks:
@@ -50,7 +50,7 @@ services:
       resources:
         limits:
           cpus: "0.60"
-          memory: "155MB"
+          memory: "140MB"
   app01:
     <<: *app
     container_name: rinha2025-app-01

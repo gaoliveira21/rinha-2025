@@ -24,7 +24,9 @@ func main() {
 		Addr: ":" + port,
 	}
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("DB_URL"))
+	config, _ := pgxpool.ParseConfig(os.Getenv("DB_URL"))
+	config.MaxConns = 8
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -39,8 +41,8 @@ func main() {
 	worker := queue.NewPaymentWorker(pool, paymentPcrDft, paymentPcrFbk, ctx)
 	d := queue.NewDispatcher(
 		worker,
-		20,
-		2048,
+		8,
+		3048,
 	)
 	worker.SetDispatcher(d)
 
