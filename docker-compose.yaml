@@ -44,6 +44,11 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_DB=rinha_payments
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U postgres -d rinha_payments'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     ports:
       - "5432:5432"
     deploy:
@@ -56,13 +61,15 @@ services:
     container_name: rinha2025-app-01
     hostname: app01
     depends_on:
-      - db
+      db:
+        condition: service_healthy
   app02:
     <<: *app
     container_name: rinha2025-app-02
     hostname: app02
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 networks:
   backend:
