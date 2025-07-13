@@ -7,14 +7,17 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"rinha2025/internal/clients"
 	"rinha2025/internal/handlers"
+	"rinha2025/internal/queue"
 	"syscall"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	port := os.Getenv("PORT")
 
 	server := &http.Server{
@@ -25,17 +28,29 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
+	defer pool.Close()
 
-	handler := handlers.NewHandler(pool)
-	http.HandleFunc("POST /payments", handler.PaymentsHandler)
-	http.HandleFunc("GET /payments-summary", handler.PaymentsSummaryHandler)
-	http.HandleFunc("GET /health", handler.HealthCheckHandler)
-
-	paymentPcrDft := handler.GetPaymentProcessorDefault()
-	paymentPcrFbk := handler.GetPaymentProcessorFallback()
+	paymentPcrDft := clients.NewPaymentProcessorDefault()
+	paymentPcrFbk := clients.NewPaymentProcessorFallback()
 
 	go paymentPcrDft.HearthBeat()
 	go paymentPcrFbk.HearthBeat()
+
+	worker := queue.NewPaymentWorker(pool, paymentPcrDft, paymentPcrFbk, ctx)
+	d := queue.NewDispatcher(
+		worker,
+		20,
+		2048,
+	)
+	worker.SetDispatcher(d)
+
+	go d.Start(ctx)
+
+	handler := handlers.NewHandler(pool, d, paymentPcrDft, paymentPcrFbk)
+	http.HandleFunc("POST /payments", handler.PaymentsHandler)
+	http.HandleFunc("POST /purge-payments", handler.PurgePaymentsHandler)
+	http.HandleFunc("GET /payments-summary", handler.PaymentsSummaryHandler)
+	http.HandleFunc("GET /health", handler.HealthCheckHandler)
 
 	go func() {
 		log.Printf("Starting server on port %s", port)
@@ -49,10 +64,6 @@ func main() {
 	signal.Notify(sc, syscall.SIGTERM, syscall.SIGINT)
 	<-sc
 
-	ctx, shutdown := context.WithTimeout(context.Background(), 5*time.Second)
-	defer shutdown()
-
-	pool.Close()
 	if err := server.Shutdown(ctx); err != nil {
 		log.Fatalf("Server shutdown failed: %v", err)
 	}

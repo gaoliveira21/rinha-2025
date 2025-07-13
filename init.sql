@@ -1,5 +1,5 @@
 CREATE UNLOGGED TABLE payments_default (
-  correlationId UUID PRIMARY KEY,
+  correlation_id UUID PRIMARY KEY,
   amount DECIMAL NOT NULL,
   requested_at TIMESTAMP NOT NULL
 );
@@ -7,7 +7,7 @@ CREATE UNLOGGED TABLE payments_default (
 CREATE INDEX payments_default_requested_at ON payments_default (requested_at);
 
 CREATE UNLOGGED TABLE payments_fallback (
-  correlationId UUID PRIMARY KEY,
+  correlation_id UUID PRIMARY KEY,
   amount DECIMAL NOT NULL,
   requested_at TIMESTAMP NOT NULL
 );

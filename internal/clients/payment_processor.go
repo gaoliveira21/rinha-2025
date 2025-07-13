@@ -43,13 +43,10 @@ func (p *PaymentProcessor) HealthCheck() *HealthCheckOutput {
 
 func (p *PaymentProcessor) HearthBeat() {
 	for {
-		log.Printf("Checking health of payment processor at %s", p.baseUrl)
 		output := p.HealthCheck()
 		p.mu.Lock()
 		p.health = !output.Failing
 		p.mu.Unlock()
-
-		log.Printf("Payment processor at %s is healthy: %v", p.baseUrl, p.health)
 
 		time.Sleep(5 * time.Second)
 	}
@@ -73,7 +70,7 @@ func (p *PaymentProcessor) ProcessPayment(input *PaymentInput) error {
 	}
 
 	buf := bytes.NewBuffer(body)
-	resp, err := http.Post(p.baseUrl+"/payments/service-health", "application/json", buf)
+	resp, err := http.Post(p.baseUrl+"/payments", "application/json", buf)
 	if err != nil {
 		return err
 	}

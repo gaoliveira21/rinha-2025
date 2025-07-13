@@ -3,6 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"rinha2025/internal/queue"
+	"time"
 )
 
 type PaymentBody struct {
@@ -20,15 +22,12 @@ func (h *Handler) PaymentsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.paymentProcessorDefault.IsHealthy() {
-		//TODO: Send to the default payment processor queue
-	}
+	h.dispatcher.Enqueue(&queue.PaymentJob{
+		CorrelationID: body.CorrelationID,
+		Amount:        body.Amount,
+		RequestedAt:   time.Now(),
+	})
 
-	if h.paymentProcessorFallback.IsHealthy() {
-		// TODO: Send to the fallback payment processor queue
-	}
-
-	// TODO: Insert payment into the database queue to be processed later
 	w.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Payment request accepted"})
 }

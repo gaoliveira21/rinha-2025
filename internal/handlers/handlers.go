@@ -2,13 +2,14 @@ package handlers
 
 import (
 	"rinha2025/internal/clients"
-	"rinha2025/internal/dao"
+	"rinha2025/internal/queue"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Handler struct {
-	paymentsDAO              *dao.PaymentsDAO
+	dispatcher               *queue.Dispatcher
+	pool                     *pgxpool.Pool
 	paymentProcessorDefault  *clients.PaymentProcessor
 	paymentProcessorFallback *clients.PaymentProcessor
 }
@@ -17,18 +18,16 @@ type ErrorResp struct {
 	Message string `json:"message"`
 }
 
-func NewHandler(pool *pgxpool.Pool) *Handler {
+func NewHandler(
+	pool *pgxpool.Pool,
+	d *queue.Dispatcher,
+	paymentProcessorDefault *clients.PaymentProcessor,
+	paymentProcessorFallback *clients.PaymentProcessor,
+) *Handler {
 	return &Handler{
-		paymentsDAO:              dao.NewPaymentsDAO(pool),
-		paymentProcessorDefault:  clients.NewPaymentProcessorDefault(),
-		paymentProcessorFallback: clients.NewPaymentProcessorFallback(),
+		dispatcher:               d,
+		pool:                     pool,
+		paymentProcessorDefault:  paymentProcessorDefault,
+		paymentProcessorFallback: paymentProcessorFallback,
 	}
-}
-
-func (h *Handler) GetPaymentProcessorDefault() *clients.PaymentProcessor {
-	return h.paymentProcessorDefault
-}
-
-func (h *Handler) GetPaymentProcessorFallback() *clients.PaymentProcessor {
-	return h.paymentProcessorFallback
 }
