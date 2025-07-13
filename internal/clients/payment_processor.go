@@ -28,6 +28,7 @@ func (p *PaymentProcessor) HealthCheck() *HealthCheckOutput {
 	}
 	resp, err := http.Get(p.baseUrl + "/payments/service-health")
 	if err != nil {
+		log.Printf("Error fetching health check from %s: %v\n", p.baseUrl, err)
 		return out
 	}
 	defer resp.Body.Close()

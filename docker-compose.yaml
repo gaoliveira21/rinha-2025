@@ -1,10 +1,10 @@
 x-service-templates:
   app: &app
-    image: gaoliveira21/rinha2025:0.1
+    image: gaoliveira21/rinha2025:latest
     environment:
       - PORT=8080
-      - PAYMENT_PROCESSOR_DEFAULT_URL=http://payment-processor:8080
-      - PAYMENT_PROCESSOR_FALLBACK_URL=http://payment-processor:8081
+      - PAYMENT_PROCESSOR_DEFAULT_URL=http://payment-processor-default:8080
+      - PAYMENT_PROCESSOR_FALLBACK_URL=http://payment-processor-fallback:8080
       - DB_URL=postgres://postgres:postgres@db:5432/rinha_payments
     networks:
       - backend
