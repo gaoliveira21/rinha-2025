@@ -5,11 +5,7 @@ x-service-templates:
       - PORT=8080
       - PAYMENT_PROCESSOR_DEFAULT_URL=http://payment-processor:8080
       - PAYMENT_PROCESSOR_FALLBACK_URL=http://payment-processor:8081
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=rinha_payments
+      - DB_URL=postgres://postgres:postgres@db:5432/rinha_payments
     networks:
       - backend
       - payment-processor
@@ -48,6 +44,8 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_DB=rinha_payments
+    ports:
+      - "5432:5432"
     deploy:
       resources:
         limits:

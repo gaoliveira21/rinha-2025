@@ -10,6 +10,8 @@ import (
 	"rinha2025/internal/handlers"
 	"syscall"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -19,7 +21,12 @@ func main() {
 		Addr: ":" + port,
 	}
 
-	handler := handlers.NewHandler()
+	pool, err := pgxpool.New(context.Background(), os.Getenv("DB_URL"))
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	handler := handlers.NewHandler(pool)
 	http.HandleFunc("POST /payments", handler.PaymentsHandler)
 	http.HandleFunc("GET /payments-summary", handler.PaymentsSummaryHandler)
 
@@ -38,6 +45,7 @@ func main() {
 	ctx, shutdown := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdown()
 
+	pool.Close()
 	if err := server.Shutdown(ctx); err != nil {
 		log.Fatalf("Server shutdown failed: %v", err)
 	}
