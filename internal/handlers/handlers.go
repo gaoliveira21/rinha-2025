@@ -9,8 +9,8 @@ import (
 
 type Handler struct {
 	paymentsDAO              *dao.PaymentsDAO
-	paymentProcessorDefault  *clients.PaymentProcessorDefault
-	paymentProcessorFallback *clients.PaymentProcessorFallback
+	paymentProcessorDefault  *clients.PaymentProcessor
+	paymentProcessorFallback *clients.PaymentProcessor
 }
 
 func NewHandler(pool *pgxpool.Pool) *Handler {
@@ -19,4 +19,12 @@ func NewHandler(pool *pgxpool.Pool) *Handler {
 		paymentProcessorDefault:  clients.NewPaymentProcessorDefault(),
 		paymentProcessorFallback: clients.NewPaymentProcessorFallback(),
 	}
+}
+
+func (h *Handler) GetPaymentProcessorDefault() *clients.PaymentProcessor {
+	return h.paymentProcessorDefault
+}
+
+func (h *Handler) GetPaymentProcessorFallback() *clients.PaymentProcessor {
+	return h.paymentProcessorFallback
 }

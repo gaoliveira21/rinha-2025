@@ -1,22 +1,13 @@
 package clients
 
-import "os"
+import (
+	"os"
+)
 
-type PaymentProcessorFallback struct {
-	baseUrl string
-}
-
-func NewPaymentProcessorFallback() *PaymentProcessorFallback {
+func NewPaymentProcessorFallback() *PaymentProcessor {
 	baseUrl := os.Getenv("PAYMENT_PROCESSOR_FALLBACK_URL")
-	return &PaymentProcessorFallback{
+	return &PaymentProcessor{
 		baseUrl: baseUrl,
+		health:  true,
 	}
-}
-
-func (p *PaymentProcessorFallback) Health() *HealthCheckOutput {
-	return healthCheck(p.baseUrl)
-}
-
-func (p *PaymentProcessorFallback) ProcessPayment(input *PaymentInput) error {
-	return processPayment(p.baseUrl, input)
 }

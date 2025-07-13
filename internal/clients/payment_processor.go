@@ -6,19 +6,27 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
+	"time"
 )
+
+type PaymentProcessor struct {
+	baseUrl string
+	health  bool
+	mu      sync.Mutex
+}
 
 type HealthCheckOutput struct {
 	Failing         bool `json:"failing"`
 	MinResponseTime int  `json:"minResponseTime"`
 }
 
-func healthCheck(baseUrl string) *HealthCheckOutput {
+func (p *PaymentProcessor) HealthCheck() *HealthCheckOutput {
 	out := &HealthCheckOutput{
 		Failing:         true,
 		MinResponseTime: 0,
 	}
-	resp, err := http.Get(baseUrl + "/payments/service-health")
+	resp, err := http.Get(p.baseUrl + "/payments/service-health")
 	if err != nil {
 		return out
 	}
@@ -26,11 +34,31 @@ func healthCheck(baseUrl string) *HealthCheckOutput {
 
 	err = json.NewDecoder(resp.Body).Decode(out)
 	if err != nil {
-		log.Printf("Error decoding health check response from %s: %v", baseUrl, err)
+		log.Printf("Error decoding health check response from %s: %v", p.baseUrl, err)
 		return out
 	}
 
 	return out
+}
+
+func (p *PaymentProcessor) HearthBeat() {
+	for {
+		log.Printf("Checking health of payment processor at %s", p.baseUrl)
+		output := p.HealthCheck()
+		p.mu.Lock()
+		p.health = !output.Failing
+		p.mu.Unlock()
+
+		log.Printf("Payment processor at %s is healthy: %v", p.baseUrl, p.health)
+
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func (p *PaymentProcessor) IsHealthy() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.health
 }
 
 type PaymentInput struct {
@@ -38,21 +66,21 @@ type PaymentInput struct {
 	Amount        float64 `json:"amount"`
 }
 
-func processPayment(baseUrl string, input *PaymentInput) error {
+func (p *PaymentProcessor) ProcessPayment(input *PaymentInput) error {
 	body, err := json.Marshal(input)
 	if err != nil {
 		return err
 	}
 
 	buf := bytes.NewBuffer(body)
-	resp, err := http.Post(baseUrl+"/payments/service-health", "application/json", buf)
+	resp, err := http.Post(p.baseUrl+"/payments/service-health", "application/json", buf)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return fmt.Errorf("unexpected status code %d from %s", resp.StatusCode, baseUrl)
+		return fmt.Errorf("unexpected status code %d from %s", resp.StatusCode, p.baseUrl)
 	}
 
 	return nil

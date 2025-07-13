@@ -29,6 +29,13 @@ func main() {
 	handler := handlers.NewHandler(pool)
 	http.HandleFunc("POST /payments", handler.PaymentsHandler)
 	http.HandleFunc("GET /payments-summary", handler.PaymentsSummaryHandler)
+	http.HandleFunc("GET /health", handler.HealthCheckHandler)
+
+	paymentPcrDft := handler.GetPaymentProcessorDefault()
+	paymentPcrFbk := handler.GetPaymentProcessorFallback()
+
+	go paymentPcrDft.HearthBeat()
+	go paymentPcrFbk.HearthBeat()
 
 	go func() {
 		log.Printf("Starting server on port %s", port)
