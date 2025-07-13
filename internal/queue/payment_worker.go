@@ -38,8 +38,19 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 	job.Attempts++
 
 	if job.Attempts > 3 {
-		// TODO: Insert the data into the database to keep track of failed attempts and try again later
 		log.Printf("Job %s exceeded max attempts, dropping job", job.CorrelationID)
+		conn, err := w.pool.Acquire(w.ctx)
+		if err != nil {
+			log.Printf("Failed to acquire connection: %v", err)
+			return
+		}
+		defer conn.Release()
+
+		_, err = conn.Exec(w.ctx, `INSERT INTO failed_payments_queue (correlation_id, amount, requested_at) VALUES ($1, $2, $3)`,
+			job.CorrelationID, job.Amount, job.RequestedAt)
+		if err != nil {
+			log.Printf("Failed to insert payment into db queue: %v", err)
+		}
 		return
 	}
 
@@ -57,7 +68,6 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 		conn, err := w.pool.Acquire(w.ctx)
 		if err != nil {
 			log.Printf("Failed to acquire connection: %v", err)
-			// TODO handle error, maybe re-enqueue job as paid to just insert it later
 			return
 		}
 		defer conn.Release()
@@ -66,7 +76,6 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 			job.CorrelationID, job.Amount, job.RequestedAt)
 		if err != nil {
 			log.Printf("Failed to insert payment default: %v", err)
-			// TODO handle error, maybe re-enqueue job
 		}
 		return
 	}
@@ -85,7 +94,6 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 		conn, err := w.pool.Acquire(w.ctx)
 		if err != nil {
 			log.Printf("Failed to acquire connection: %v", err)
-			// TODO handle error, maybe re-enqueue job as paid to just insert it later
 			return
 		}
 		defer conn.Release()
@@ -94,7 +102,6 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 			job.CorrelationID, job.Amount, job.RequestedAt)
 		if err != nil {
 			log.Printf("Failed to insert payment fallback: %v", err)
-			// TODO handle error, maybe re-enqueue job as paid to just insert it later
 		}
 		return
 	}

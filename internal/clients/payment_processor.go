@@ -42,12 +42,16 @@ func (p *PaymentProcessor) HealthCheck() *HealthCheckOutput {
 	return out
 }
 
-func (p *PaymentProcessor) HearthBeat() {
+func (p *PaymentProcessor) HearthBeat(svcChan chan struct{}) {
 	for {
 		output := p.HealthCheck()
 		p.mu.Lock()
 		p.health = !output.Failing
 		p.mu.Unlock()
+
+		if p.health {
+			svcChan <- struct{}{}
+		}
 
 		time.Sleep(5 * time.Second)
 	}
