@@ -3,13 +3,11 @@ package queue
 import (
 	"context"
 	"sync"
-	"time"
 )
 
 type PaymentJob struct {
 	CorrelationID string
 	Amount        float64
-	RequestedAt   time.Time
 	Attempts      int
 }
 

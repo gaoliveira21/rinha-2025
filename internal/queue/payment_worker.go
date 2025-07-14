@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"rinha2025/internal/clients"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -46,8 +47,8 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 		}
 		defer conn.Release()
 
-		_, err = conn.Exec(w.ctx, `INSERT INTO failed_payments_queue (correlation_id, amount, requested_at) VALUES ($1, $2, $3)`,
-			job.CorrelationID, job.Amount, job.RequestedAt)
+		_, err = conn.Exec(w.ctx, `INSERT INTO failed_payments_queue (correlation_id, amount) VALUES ($1, $2)`,
+			job.CorrelationID, job.Amount)
 		if err != nil {
 			log.Printf("Failed to insert payment into db queue: %v", err)
 		}
@@ -55,9 +56,11 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 	}
 
 	if w.paymentProcessorDefault.IsHealthy() {
+		requestedAt := time.Now()
 		err := w.paymentProcessorDefault.ProcessPayment(&clients.PaymentInput{
 			CorrelationID: job.CorrelationID,
 			Amount:        job.Amount,
+			RequestedAt:   requestedAt,
 		})
 		if err != nil {
 			log.Printf("Failed to process payment default: %v", err)
@@ -73,7 +76,7 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 		defer conn.Release()
 
 		_, err = conn.Exec(w.ctx, `INSERT INTO payments_default (correlation_id, amount, requested_at) VALUES ($1, $2, $3)`,
-			job.CorrelationID, job.Amount, job.RequestedAt)
+			job.CorrelationID, job.Amount, requestedAt)
 		if err != nil {
 			log.Printf("Failed to insert payment default: %v", err)
 		}
@@ -81,9 +84,11 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 	}
 
 	if w.paymentProcessorFallback.IsHealthy() {
+		requestedAt := time.Now()
 		err := w.paymentProcessorFallback.ProcessPayment(&clients.PaymentInput{
 			CorrelationID: job.CorrelationID,
 			Amount:        job.Amount,
+			RequestedAt:   requestedAt,
 		})
 		if err != nil {
 			log.Printf("Failed to process payment fallback: %v", err)
@@ -99,7 +104,7 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 		defer conn.Release()
 
 		_, err = conn.Exec(w.ctx, `INSERT INTO payments_fallback (correlation_id, amount, requested_at) VALUES ($1, $2, $3)`,
-			job.CorrelationID, job.Amount, job.RequestedAt)
+			job.CorrelationID, job.Amount, requestedAt)
 		if err != nil {
 			log.Printf("Failed to insert payment fallback: %v", err)
 		}

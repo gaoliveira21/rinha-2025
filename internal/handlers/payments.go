@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"rinha2025/internal/queue"
-	"time"
 )
 
 type PaymentBody struct {
@@ -25,7 +24,6 @@ func (h *Handler) PaymentsHandler(w http.ResponseWriter, r *http.Request) {
 	h.dispatcher.Enqueue(&queue.PaymentJob{
 		CorrelationID: body.CorrelationID,
 		Amount:        body.Amount,
-		RequestedAt:   time.Now(),
 	})
 
 	w.WriteHeader(http.StatusAccepted)

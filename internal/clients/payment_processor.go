@@ -64,8 +64,9 @@ func (p *PaymentProcessor) IsHealthy() bool {
 }
 
 type PaymentInput struct {
-	CorrelationID string  `json:"correlationId"`
-	Amount        float64 `json:"amount"`
+	CorrelationID string    `json:"correlationId"`
+	Amount        float64   `json:"amount"`
+	RequestedAt   time.Time `json:"requestedAt"`
 }
 
 func (p *PaymentProcessor) ProcessPayment(input *PaymentInput) error {

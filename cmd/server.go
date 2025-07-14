@@ -11,7 +11,6 @@ import (
 	"rinha2025/internal/handlers"
 	"rinha2025/internal/queue"
 	"syscall"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -108,7 +107,7 @@ func processFailedPayment(pool *pgxpool.Pool, svcChan chan struct{}, d *queue.Di
 
 			rows, err := tx.Query(
 				ctx,
-				`SELECT correlation_id, amount, requested_at FROM failed_payments_queue LIMIT 400`,
+				`SELECT correlation_id, amount FROM failed_payments_queue LIMIT 400`,
 			)
 			if err != nil {
 				tx.Rollback(ctx)
@@ -123,8 +122,7 @@ func processFailedPayment(pool *pgxpool.Pool, svcChan chan struct{}, d *queue.Di
 			for rows.Next() {
 				var correlationID string
 				var amount float64
-				var requestedAt time.Time
-				if err := rows.Scan(&correlationID, &amount, &requestedAt); err != nil {
+				if err := rows.Scan(&correlationID, &amount); err != nil {
 					log.Printf("Failed to scan failed payment job: %v", err)
 					continue
 				}
@@ -132,7 +130,6 @@ func processFailedPayment(pool *pgxpool.Pool, svcChan chan struct{}, d *queue.Di
 				jobs = append(jobs, &queue.PaymentJob{
 					CorrelationID: correlationID,
 					Amount:        amount,
-					RequestedAt:   requestedAt,
 					Attempts:      0,
 				})
 				toDelete = append(toDelete, correlationID)

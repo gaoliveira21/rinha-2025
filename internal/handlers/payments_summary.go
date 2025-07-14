@@ -21,13 +21,13 @@ type PaymentsSummaryResp struct {
 func (h *Handler) PaymentsSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	from := r.URL.Query().Get("from")
-	if from == "" {
-		from = "1970-01-01T00:00:00Z"
+	from, err := time.Parse(time.RFC3339, r.URL.Query().Get("from"))
+	if err != nil {
+		from = time.Date(1970, 01, 01, 0, 0, 0, 0, time.UTC)
 	}
-	to := r.URL.Query().Get("to")
-	if to == "" {
-		to = time.Now().Format(time.RFC3339)
+	to, err := time.Parse(time.RFC3339, r.URL.Query().Get("to"))
+	if err != nil {
+		to = time.Now()
 	}
 
 	conn, err := h.pool.Acquire(context.Background())
@@ -43,7 +43,7 @@ func (h *Handler) PaymentsSummaryHandler(w http.ResponseWriter, r *http.Request)
 	err = conn.QueryRow(context.Background(), `
 		SELECT COUNT(*), COALESCE(SUM(amount), 0)
 		FROM payments_default
-		WHERE requested_at >= $1 AND requested_at <= $2
+		WHERE requested_at BETWEEN $1 AND $2
 	`, from, to).Scan(&defaultSum.TotalRequests, &defaultSum.TotalAmount)
 	if err != nil {
 		log.Printf("Failed to query payments default: %v\n", err)
@@ -56,7 +56,7 @@ func (h *Handler) PaymentsSummaryHandler(w http.ResponseWriter, r *http.Request)
 	err = conn.QueryRow(context.Background(), `
 		SELECT COUNT(*), COALESCE(SUM(amount), 0)
 		FROM payments_fallback
-		WHERE requested_at >= $1 AND requested_at <= $2
+		WHERE requested_at BETWEEN $1 AND $2
 	`, from, to).Scan(&fallbackSum.TotalRequests, &fallbackSum.TotalAmount)
 	if err != nil {
 		log.Printf("Failed to query payments fallback: %v\n", err)
