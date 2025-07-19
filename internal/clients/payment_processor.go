@@ -33,6 +33,10 @@ func (p *PaymentProcessor) HealthCheck() *HealthCheckOutput {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return out
+	}
+
 	err = json.NewDecoder(resp.Body).Decode(out)
 	if err != nil {
 		log.Printf("Error decoding health check response from %s: %v", p.baseUrl, err)
@@ -50,7 +54,11 @@ func (p *PaymentProcessor) HearthBeat(svcChan chan struct{}) {
 		p.mu.Unlock()
 
 		if p.health {
-			svcChan <- struct{}{}
+			select {
+			case svcChan <- struct{}{}:
+			default:
+				// Channel is full, skip sending to avoid blocking
+			}
 		}
 
 		time.Sleep(5 * time.Second)
