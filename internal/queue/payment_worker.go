@@ -83,34 +83,6 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 		return
 	}
 
-	if w.paymentProcessorFallback.IsHealthy() {
-		requestedAt := time.Now()
-		err := w.paymentProcessorFallback.ProcessPayment(&clients.PaymentInput{
-			CorrelationID: job.CorrelationID,
-			Amount:        job.Amount,
-			RequestedAt:   requestedAt,
-		})
-		if err != nil {
-			log.Printf("Failed to process payment fallback: %v", err)
-			w.dispatcher.Enqueue(job)
-			return
-		}
-
-		conn, err := w.pool.Acquire(w.ctx)
-		if err != nil {
-			log.Printf("Failed to acquire connection: %v", err)
-			return
-		}
-		defer conn.Release()
-
-		_, err = conn.Exec(w.ctx, `INSERT INTO payments_fallback (correlation_id, amount, requested_at) VALUES ($1, $2, $3)`,
-			job.CorrelationID, job.Amount, requestedAt)
-		if err != nil {
-			log.Printf("Failed to insert payment fallback: %v", err)
-		}
-		return
-	}
-
 	w.dispatcher.Enqueue(job)
 	log.Printf("Both payment processors are unhealthy, job re-enqueued: %s", job.CorrelationID)
 }
