@@ -18,7 +18,7 @@ import (
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
-	svcChan := make(chan struct{}, 100)
+	svcChan := make(chan struct{}, 1024)
 	defer cancel()
 	port := os.Getenv("PORT")
 
@@ -27,7 +27,7 @@ func main() {
 	}
 
 	config, _ := pgxpool.ParseConfig(os.Getenv("DB_URL"))
-	config.MaxConns = 22
+	config.MaxConns = 32
 	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -42,8 +42,8 @@ func main() {
 	worker := queue.NewPaymentWorker(pool, paymentPcrDft, paymentPcrFbk, ctx)
 	d := queue.NewDispatcher(
 		worker,
-		20,
-		6048,
+		22,
+		16384,
 	)
 	worker.SetDispatcher(d)
 
