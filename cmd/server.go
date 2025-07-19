@@ -26,7 +26,8 @@ func main() {
 		Addr: ":" + port,
 	}
 
-	config, _ := pgxpool.ParseConfig(os.Getenv("DB_URL"))
+	url := os.Getenv("DB_URL")
+	config, _ := pgxpool.ParseConfig(url + "?sslmode=disable")
 	config.MaxConns = 32
 	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
@@ -94,8 +95,6 @@ func processFailedPayment(pool *pgxpool.Pool, svcChan chan struct{}, d *queue.Di
 				log.Println("Service channel closed, stopping processing of failed payments")
 				return
 			}
-
-			log.Println("Processing failed payments")
 			var jobs []*queue.PaymentJob
 			var toDelete []string
 			tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
@@ -147,7 +146,6 @@ func processFailedPayment(pool *pgxpool.Pool, svcChan chan struct{}, d *queue.Di
 
 			for _, job := range jobs {
 				d.Enqueue(job)
-				log.Printf("Re-enqueued failed payment job %s for processing", job.CorrelationID)
 			}
 		}
 	}
