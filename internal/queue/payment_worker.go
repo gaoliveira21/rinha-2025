@@ -39,7 +39,6 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 	job.Attempts++
 
 	if job.Attempts > 3 {
-		log.Printf("Job %s exceeded max attempts, dropping job", job.CorrelationID)
 		conn, err := w.pool.Acquire(w.ctx)
 		if err != nil {
 			log.Printf("Failed to acquire connection: %v", err)
@@ -63,7 +62,6 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 			RequestedAt:   requestedAt,
 		})
 		if err != nil {
-			log.Printf("Failed to process payment default: %v", err)
 			w.dispatcher.Enqueue(job)
 			return
 		}
@@ -84,5 +82,4 @@ func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
 	}
 
 	w.dispatcher.Enqueue(job)
-	log.Printf("Both payment processors are unhealthy, job re-enqueued: %s", job.CorrelationID)
 }
