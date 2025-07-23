@@ -12,17 +12,17 @@ type PaymentBody struct {
 }
 
 func (h *Handler) PaymentsHandler(w http.ResponseWriter, r *http.Request) {
-	var body PaymentBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResp{Message: "Invalid request body"})
-		return
-	}
+	go func() {
+		var body PaymentBody
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			return
+		}
 
-	h.dispatcher.Enqueue(&queue.PaymentJob{
-		CorrelationID: body.CorrelationID,
-		Amount:        body.Amount,
-	})
+		h.dispatcher.Enqueue(&queue.PaymentJob{
+			CorrelationID: body.CorrelationID,
+			Amount:        body.Amount,
+		})
+	}()
 
 	w.WriteHeader(http.StatusAccepted)
 }
