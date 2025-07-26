@@ -52,9 +52,22 @@ func (h *Handler) PaymentsSummaryHandler(w http.ResponseWriter, r *http.Request)
 		json.NewEncoder(w).Encode(resp)
 	}
 
+	fallbackSum := &PaymentSummary{}
+	err = conn.QueryRow(context.Background(), `
+		SELECT COUNT(*), COALESCE(SUM(amount), 0)
+		FROM payments_fallback
+		WHERE requested_at BETWEEN $1 AND $2
+	`, from, to).Scan(&fallbackSum.TotalRequests, &fallbackSum.TotalAmount)
+	if err != nil {
+		log.Printf("Failed to query payments fallback: %v\n", err)
+		resp := ErrorResp{Message: "Failed to get payments summary"}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(resp)
+	}
+
 	out := &PaymentsSummaryResp{
 		Default:  defaultSum,
-		Fallback: &PaymentSummary{},
+		Fallback: fallbackSum,
 	}
 
 	w.WriteHeader(http.StatusOK)
