@@ -37,9 +37,6 @@ func main() {
 	paymentPcrDft := clients.NewPaymentProcessorDefault()
 	paymentPcrFbk := clients.NewPaymentProcessorFallback()
 
-	go paymentPcrDft.HearthBeat(svcChan)
-	go paymentPcrFbk.HearthBeat(svcChan)
-
 	worker := queue.NewPaymentWorker(pool, paymentPcrDft, paymentPcrFbk, ctx)
 	d := queue.NewDispatcher(
 		worker,
