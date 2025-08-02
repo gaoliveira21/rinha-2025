@@ -36,24 +36,6 @@ func (w *PaymentWorker) SetDispatcher(d *Dispatcher) {
 }
 
 func (w *PaymentWorker) ProcessPayment(job *PaymentJob) {
-	job.Attempts++
-
-	if job.Attempts > 3 {
-		conn, err := w.pool.Acquire(w.ctx)
-		if err != nil {
-			log.Printf("Failed to acquire connection: %v", err)
-			return
-		}
-		defer conn.Release()
-
-		_, err = conn.Exec(w.ctx, `INSERT INTO failed_payments_queue (correlation_id, amount) VALUES ($1, $2)`,
-			job.CorrelationID, job.Amount)
-		if err != nil {
-			log.Printf("Failed to insert payment into db queue: %v", err)
-		}
-		return
-	}
-
 	if w.paymentProcessorDefault.IsHealthy() {
 		requestedAt := time.Now()
 		err := w.paymentProcessorDefault.ProcessPayment(&clients.PaymentInput{

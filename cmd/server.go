@@ -12,7 +12,6 @@ import (
 	"rinha2025/internal/queue"
 	"syscall"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -51,8 +50,6 @@ func main() {
 
 	go d.Start(ctx)
 
-	go processFailedPayment(pool, svcChan, d, ctx)
-
 	handler := handlers.NewHandler(pool, d, paymentPcrDft, paymentPcrFbk)
 	http.HandleFunc("POST /payments", handler.PaymentsHandler)
 	http.HandleFunc("POST /purge-payments", handler.PurgePaymentsHandler)
@@ -76,78 +73,4 @@ func main() {
 	}
 	close(svcChan)
 	log.Println("Server gracefully stopped")
-}
-
-func processFailedPayment(pool *pgxpool.Pool, svcChan chan struct{}, d *queue.Dispatcher, ctx context.Context) {
-	conn, err := pool.Acquire(ctx)
-	if err != nil {
-		log.Printf("Failed to acquire connection: %v", err)
-		return
-	}
-	defer conn.Release()
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.Println("Stopping processing of failed payments")
-			return
-		case _, ok := <-svcChan:
-			if !ok {
-				log.Println("Service channel closed, stopping processing of failed payments")
-				return
-			}
-			var jobs []*queue.PaymentJob
-			var toDelete []string
-			tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
-			if err != nil {
-				log.Printf("Failed to begin transaction: %v", err)
-				continue
-			}
-
-			rows, err := tx.Query(
-				ctx,
-				`SELECT correlation_id, amount FROM failed_payments_queue LIMIT 400`,
-			)
-			if err != nil {
-				tx.Rollback(ctx)
-				if errors.Is(err, pgx.ErrNoRows) {
-					log.Println("No failed payments to process")
-					continue
-				}
-				log.Printf("Failed to query failed payments: %v", err)
-				continue
-			}
-
-			for rows.Next() {
-				var correlationID string
-				var amount float64
-				if err := rows.Scan(&correlationID, &amount); err != nil {
-					log.Printf("Failed to scan failed payment job: %v", err)
-					continue
-				}
-
-				jobs = append(jobs, &queue.PaymentJob{
-					CorrelationID: correlationID,
-					Amount:        amount,
-					Attempts:      0,
-				})
-				toDelete = append(toDelete, correlationID)
-			}
-
-			rows.Close()
-
-			_, err = tx.Exec(ctx, `DELETE FROM failed_payments_queue WHERE correlation_id = ANY ($1)`, toDelete)
-			if err != nil {
-				tx.Rollback(ctx)
-				log.Printf("Failed to delete failed payments from db queue: %v", err)
-				continue
-			}
-
-			tx.Commit(ctx)
-
-			for _, job := range jobs {
-				d.Enqueue(job)
-			}
-		}
-	}
 }
