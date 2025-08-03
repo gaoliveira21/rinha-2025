@@ -13,7 +13,7 @@ x-service-templates:
       resources:
         limits:
           cpus: "0.375"
-          memory: "90M"
+          memory: "75M"
 
 services:
   nginx:
@@ -33,7 +33,7 @@ services:
       resources:
         limits:
           cpus: "0.15"
-          memory: "30MB"
+          memory: "60MB"
   db:
     image: postgres:17-alpine
     networks:
